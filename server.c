@@ -67,8 +67,8 @@ n_fitness_device *fitness_dev_list = NULL;
 
 int main(int argc, char const *argv[]) {
     signal(SIGINT, sigintHandler);
-    // write_test_users_to_file();
-    // write_fitness_devices_to_file();
+    write_test_users_to_file();
+    write_fitness_devices_to_file();
     if (!load_users_from_file()) {
         exit(EXIT_FAILURE);
     }
