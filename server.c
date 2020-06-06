@@ -15,50 +15,10 @@
 
 #include "communication.h"
 #include "fitness_device_constants.h"
+#include "server.h"
 
-#define SA struct sockaddr
-#define USERS_FILE "users.dat"
-#define WELCOM_TO_FITNESS_MSG "\n\nWelcome to fitness Keep Yourself Positive\n"
-
-typedef struct ConnectionArgs {
-    int fd;
-} connection_args;
 
 char *fitness_device_types[FITNESS_DEVICES_COUNT];
-
-int initialize_server_socket();
-void accept_connections();
-void *communicate_with_client(void *args);
-void write_to_client(int connection_fd, char *msg_str, int response_required, char *response_buf);
-
-int user_login(int connection_fd, s_user *user);
-s_user *find_user(char *username, char *password);
-
-void init_menu(int conn_fd, s_user user);
-void append_options(char *options_str, int *exit_code);
-int handle_fitness_device(int conn_fd, int option, char *username);
-void append_user_training_data(char *username, char *data);
-
-void init_fitness_device_types();
-int load_users_from_file();
-void add_user_to_list(s_user user);
-int load_fitness_devices_from_file();
-void add_fitness_device_to_list(s_fitness_device device);
-void ask_for_the_current_weight(int conn_fd, char *username);
-void update_users_file();
-struct tm *getCurrentTime();
-
-void sigintHandler(int signal);
-
-// FOR TEST DATA:
-void write_test_users_to_file();
-void write_fitness_devices_to_file();
-
-// FOR DEBUG:
-void print_user_list();
-void print_device_list();
-
-
 pthread_mutex_t lock;
 int server_socket = 0;
 
@@ -67,8 +27,8 @@ n_fitness_device *fitness_dev_list = NULL;
 
 int main(int argc, char const *argv[]) {
     signal(SIGINT, sigintHandler);
-    write_test_users_to_file();
-    write_fitness_devices_to_file();
+    // write_test_users_to_file();
+    // write_fitness_devices_to_file();
     if (!load_users_from_file()) {
         exit(EXIT_FAILURE);
     }
@@ -87,8 +47,11 @@ int main(int argc, char const *argv[]) {
 
 void sigintHandler(int sig) {
     printf("\nServer stopped by Ctrl-C\n");
+    if (pthread_mutex_destroy(&lock) != 0) {
+        printf("Could not destroy the mutex\n");
+    }
     printf("Closing server socket %d...\n", server_socket);
-    if (shutdown(server_socket, 2) != 0) {
+    if (shutdown(server_socket, SHUT_RDWR) != 0) {
         printf("Could not close server socket: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
@@ -296,7 +259,6 @@ int handle_fitness_device(int conn_fd, int option, char *username) {
         sleep(time);
         char training_data_str[MAX_BUFF_SIZE];
         pthread_mutex_lock(&lock);
-        // struct tm *timeinfo = getCurrentTime();
         sprintf(training_data_str, "[INFO] Did 1 rep on the %s with id - %d, for %d seconds.\n",
                                 fitness_device_types[option], curr_node->device.id, time);
         append_user_training_data(username, training_data_str);
@@ -383,9 +345,7 @@ void write_to_client(int connection_fd, char *msg_str, int response_required, ch
     strncpy(msg.msg_buf, msg_str, MAX_BUFF_SIZE);
     msg.response_required = response_required;
 
-    pthread_mutex_lock(&lock);
     size_t sent_bytes = write(connection_fd, &msg, sizeof(msg));
-    pthread_mutex_unlock(&lock);
     if (sent_bytes < 0) {
         printf("Could not write to client...\n");
         return;
@@ -506,12 +466,6 @@ void add_fitness_device_to_list(s_fitness_device device) {
     curr_node->next = (n_fitness_device*) malloc(sizeof(n_fitness_device));
     curr_node->next->device = device;
     curr_node->next->next = NULL;
-}
-
-struct tm *getCurrentTime() {
-    time_t rawtime;
-    time (&rawtime);
-    return localtime (&rawtime);
 }
 
 void write_test_users_to_file() {

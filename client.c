@@ -1,15 +1,17 @@
 #include <netdb.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <netinet/in.h>
+#include <strings.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 #include <errno.h>
+
 #include "communication.h"
+#include "client.h"
 
-#define SA struct sockaddr
-
-int initialize_client_socket();
-void communicate_with_server(int socket_fd);
 
 int main() {
     int socket_fd = initialize_client_socket();
@@ -51,11 +53,12 @@ int initialize_client_socket() {
 void communicate_with_server(int socket_fd) {
     message received_msg = {0};
     message response_msg = {0};
+    size_t bytes_read, bytes_sent;
 
     while (1) {
         bzero(&received_msg, sizeof(received_msg));
         bzero(&response_msg, sizeof(response_msg));
-        size_t bytes_read = read(socket_fd, &received_msg, sizeof(received_msg));
+        bytes_read = read(socket_fd, &received_msg, sizeof(received_msg));
 
         if (bytes_read <= 0) {
             printf("Could not read information from server: %s\n", strerror(errno));
@@ -70,7 +73,7 @@ void communicate_with_server(int socket_fd) {
 
         scanf("%s", response_msg.msg_buf);
         response_msg.response_required = 1;
-        size_t bytes_sent = write(socket_fd, &response_msg, sizeof(response_msg)); 
+        bytes_sent = write(socket_fd, &response_msg, sizeof(response_msg)); 
         if (bytes_sent <= 0) {
             printf("[Could not write to server: %s\n", strerror(errno));
             break;
